@@ -4,6 +4,27 @@
 
 ---
 
+## Event Flow: Room Creation + First Round
+
+```text
+1. Human launches the CLI shell
+2. CLI Shell discovers provider keys and available models via the Provider Layer
+3. Human creates a room
+   → names the room
+   → describes the problem statement
+   → selects or confirms the initial agent participants
+4. CLI Shell writes the initial room artifacts
+   → `room_config.json` persisted with room metadata, participants, and settings
+   → `room_state.json` persisted with `status: "draft"` and no open round
+5. Human submits the first seed message
+   → Protocol Manager calls `start_round(seed_message, author)`
+   → Room status transitions from `draft` to `active`
+   → Round 1 opens under the standard blind-round flow
+6. The room continues with the normal round-close and checkpoint flow
+```
+
+---
+
 ## Event Flow: A Single Round
 
 **Blind-round invariant:** In MVP, the human seeds each round and all agent responses happen blind within that round. No participant sees another participant's response until the round closes and all outcomes are revealed simultaneously.

@@ -1,5 +1,6 @@
 """Deliberation Room engine foundations."""
 
+from .cli import CliShell, ShellSession, main
 from .domain import (
     ROOM_STATUS_TRANSITIONS,
     ROUND_STATUS_TRANSITIONS,
@@ -74,6 +75,7 @@ from .protocol import (
 )
 
 __all__ = [
+    "CliShell",
     "ROOM_STATUS_TRANSITIONS",
     "ROUND_STATUS_TRANSITIONS",
     "PARTICIPANT_OUTCOME_TRANSITIONS",
@@ -135,8 +137,10 @@ __all__ = [
     "CHECKPOINT_REASON_TOPIC_SHIFT",
     "KeySource",
     "PASS_TOKEN",
+    "ShellSession",
     "ensure_participant_outcome_transition",
     "ensure_room_status_transition",
     "ensure_round_status_transition",
+    "main",
     "utc_now",
 ]

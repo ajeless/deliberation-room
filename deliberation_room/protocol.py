@@ -271,6 +271,20 @@ class ProtocolManager:
             return self.end_room(reason="checkpoint failure")
         raise ValueError(f"unsupported checkpoint failure action '{action}'")
 
+    def resolve_no_available_agents(self, action: str) -> ProtocolActionResult:
+        state = self.storage.load_room_state()
+        pending = state.pending_human_decision
+        if pending is None or pending.decision_type != DECISION_TYPE_NO_AVAILABLE_AGENTS:
+            raise ValueError("there is no pending no-available-agents decision to resolve")
+        if action not in pending.allowed_actions:
+            raise ValueError(f"action '{action}' is not allowed for this decision")
+
+        if action == "archive":
+            return self.archive_room(reason="no available agents")
+        if action == "end":
+            return self.end_room(reason="no available agents")
+        raise ValueError(f"unsupported no-available-agents action '{action}'")
+
     def archive_room(self, *, reason: str) -> ProtocolActionResult:
         del reason  # reserved for future metrics/logging
         state = self.storage.load_room_state()
@@ -346,6 +360,44 @@ class ProtocolManager:
 
         room.config.participants = remaining
         self.storage.save_room_config(room.config)
+        return room.config
+
+    def swap_agent(self, participant_id: str, replacement: Agent) -> RoomConfig:
+        room = self._load_room()
+        if room.state.current_round is not None:
+            raise ValueError("cannot swap agents while a round is open")
+        if room.state.status is not RoomStatus.ACTIVE:
+            raise ValueError("agents may only be swapped while the room is active and settled")
+
+        participants = list(room.config.participants)
+        target_index: int | None = None
+        for index, participant in enumerate(participants):
+            if participant.participant_id == participant_id:
+                if not isinstance(participant, Agent):
+                    raise ValueError("only agent participants may be swapped")
+                target_index = index
+                break
+        if target_index is None:
+            raise KeyError(f"agent participant '{participant_id}' does not exist")
+        if any(
+            participant.participant_id == replacement.participant_id
+            for participant in participants
+            if participant.participant_id != participant_id
+        ):
+            raise ValueError(
+                f"replacement participant_id '{replacement.participant_id}' already exists"
+            )
+
+        participants[target_index] = replacement
+        room.config.participants = participants
+        self.storage.save_room_config(room.config)
+
+        state = room.state
+        queued_swap = state.queued_agent_swap or {}
+        if queued_swap.get("participant_id") == participant_id:
+            state.queued_agent_swap = None
+            state.updated_at = utc_now()
+            self.storage.save_room_state(state)
         return room.config
 
     def get_room_status(self) -> JSONDict:

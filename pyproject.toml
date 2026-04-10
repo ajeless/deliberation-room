@@ -5,3 +5,6 @@ description = "Foundational domain and persistence layer for Deliberation Room"
 readme = "docs/spec/deliberation-room-mvp.md"
 requires-python = ">=3.12,<3.13"
 dependencies = []
+
+[project.scripts]
+deliberation-room = "deliberation_room.cli:main"
