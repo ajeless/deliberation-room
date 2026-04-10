@@ -86,6 +86,30 @@
 
 ---
 
+## Summary Snapshot Contract
+
+**Summary snapshot (canonical fields):**
+
+```json
+{
+  "summary_id": "sum_0001",
+  "checkpoint_id": "chk_0001",
+  "round_number": 1,
+  "created_at": "timestamp",
+  "content": "string"
+}
+```
+
+**Summary snapshot semantics:**
+- Summary snapshots are persisted as versioned JSON artifacts, not plain text files
+- `summary_id` is the canonical identifier referenced by `Checkpoint.summary_snapshot_id`
+- `checkpoint_id` links the snapshot to the checkpoint attempt that produced it
+- `round_number` records the latest round incorporated into the summary snapshot
+- `content` is the human-readable working summary used in `get_context_payload()`
+- The current-summary convenience file, if materialized, is a projection of the latest summary snapshot rather than a separate schema
+
+---
+
 ## Structured State Schema
 
 **Structured state schema (canonical fields):**

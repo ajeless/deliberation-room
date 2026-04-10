@@ -154,6 +154,16 @@ This plan breaks the MVP into phases with clear milestones. Each phase produces 
 
 ---
 
+## Deferred MVP Clarifications
+
+These are known documentation and design clarifications to resolve during later MVP phases. They are not blockers for Phase 1, but they should be addressed before the relevant phase is considered complete.
+
+- **Phase 4:** Define the compaction request mechanism. The protocol already treats a compaction request as a checkpoint trigger; Phase 4 should specify how that signal is represented and surfaced to the Protocol Manager.
+- **Phase 4:** Define open-round context consistency. Decide whether `get_context_payload()` is snapshotted at round open or whether human edits made during an open round are deferred until the round settles.
+- **Phase 5:** Add an explicit room creation / `draft -> active` flow to `docs/architecture/flows.md`, covering room creation, participant setup, and the first round start.
+
+---
+
 ## Dependency Graph
 
 ```text

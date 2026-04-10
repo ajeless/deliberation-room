@@ -88,7 +88,8 @@
 7. If all non-seed participants are now in terminal states
    (`responded`, `passed`, or `unavailable`)
    → the round closes normally
-8. If the round closes with no remaining available agent participants and no swap is queued
+   → the standard post-round checkpoint flow still runs
+8. After that checkpoint resolves, if there are no remaining available agent participants and no swap is queued
    → room status=awaiting_human_decision before another round can start
    → human must archive or end
 ```

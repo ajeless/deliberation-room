@@ -17,7 +17,7 @@ The system is a **headless engine** with a **CLI shell** as the first client. Th
 The Room Engine is not a synonym for the Protocol Manager. It is the parent that coordinates all three modules.
 
 **Implementation language note:**
-The architecture is intentionally language-agnostic at this stage. Python, Go, or another implementation language may be chosen later, but the module boundaries, data contracts, event flows, and invariants defined here should not depend on that choice.
+The MVP implementation stack is Python 3.12 + UV. The architecture remains intentionally language-agnostic: the module boundaries, data contracts, event flows, and invariants defined here should not depend on that implementation choice.
 
 ```text
 ┌─────────────────────────────────────────────┐
