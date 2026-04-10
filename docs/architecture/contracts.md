@@ -184,7 +184,8 @@ The raw transcript is persisted as an append-only JSONL file of immutable round 
 **Checkpoint semantics:**
 - `status` is `success` or `error`
 - `reason` remains a free-form string in the Phase 1 persistence skeleton; canonical enum values are intentionally deferred until the checkpoint-trigger design is finalized
-- `summary_snapshot_id` and `structured_state_revision_id` are nullable when the checkpoint fails before producing new artifacts
+- Checkpoints use a two-step pipeline in V1: summary generation followed by structured-state generation
+- `summary_snapshot_id` and `structured_state_revision_id` are nullable when the checkpoint fails before atomically committing new artifacts
 - Each checkpoint attempt is logged, including failures
 
 ---
@@ -284,7 +285,7 @@ The raw transcript is persisted as an append-only JSONL file of immutable round 
       "old_value": null,
       "new_value": null,
       "author": "participant_id",
-      "source": "checkpoint",
+      "source": "human_edit",
       "timestamp": "timestamp"
     }
   ]
@@ -304,7 +305,9 @@ The raw transcript is persisted as an append-only JSONL file of immutable round 
 - `updated_by` is `system` for checkpoint-generated revisions and a participant ID for human-edit or human-clear revisions
 - `revision_source` is `checkpoint`, `human_edit`, or `human_clear`
 - `active_overrides` contains only currently active overrides; clearing an override removes it from `active_overrides` in the new revision and records the clear in `edit_log`
+- When a human clears an override, the new revision restores the most recent pre-edit value recorded for that field; later checkpoints may replace it with a newly generated system value
 - `active_overrides` are authoritative and must be preserved by later checkpoints until a human changes or clears them
+- `edit_log` records human-authored edits and clears only; checkpoint-generated revisions preserve existing `edit_log` entries but do not append new ones
 - Rollback, if exposed, creates a new human-authored revision derived from an earlier revision; historical revision files remain immutable
 
 ---

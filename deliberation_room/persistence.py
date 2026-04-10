@@ -146,6 +146,16 @@ class RoomStorage:
     def load_summary_snapshot(self, summary_id: str) -> SummarySnapshot:
         return SummarySnapshot.from_dict(_read_json(self.paths.summary_snapshot(summary_id)))
 
+    def list_summary_snapshots(self) -> list[SummarySnapshot]:
+        if not self.paths.summaries_dir.exists():
+            return []
+        snapshots: list[SummarySnapshot] = []
+        for path in sorted(self.paths.summaries_dir.glob("*.json")):
+            if path.name == "current.json":
+                continue
+            snapshots.append(SummarySnapshot.from_dict(_read_json(path)))
+        return snapshots
+
     def load_current_summary(self) -> SummarySnapshot | None:
         if not self.paths.current_summary.exists():
             return None
@@ -158,6 +168,16 @@ class RoomStorage:
 
     def load_structured_state_revision(self, revision_id: str) -> StructuredState:
         return StructuredState.from_dict(_read_json(self.paths.structured_state_revision(revision_id)))
+
+    def list_structured_state_revisions(self) -> list[StructuredState]:
+        if not self.paths.structured_state_dir.exists():
+            return []
+        revisions: list[StructuredState] = []
+        for path in sorted(self.paths.structured_state_dir.glob("*.json")):
+            if path.name == "current.json":
+                continue
+            revisions.append(StructuredState.from_dict(_read_json(path)))
+        return revisions
 
     def load_current_structured_state(self) -> StructuredState | None:
         if not self.paths.current_structured_state.exists():

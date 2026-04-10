@@ -99,7 +99,7 @@ The MVP implementation stack is Python 3.12 + UV. The architecture remains inten
 
 **Canonical contracts:** The structured state schema and related domain objects are defined in `contracts.md`.
 
-**Summarization:** In V1, summarization is performed by making an LLM call (via the Provider Layer) with a dedicated summarization prompt. This is a room protocol function, not a participant. The prompt and model used for summarization are configurable but default to a fast, cheap model. Checkpoint output must preserve active human overrides when generating the next structured-state revision.
+**Checkpoint pipeline:** In V1, `run_checkpoint()` makes two Provider Layer calls: first a dedicated summarization prompt that produces the working summary, then a structured-state-generation prompt that produces the next semantic state object. This is a room protocol function, not a participant. The prompts and models used are configurable but default to fast, cheap models. The checkpoint commits atomically: summary snapshot and structured-state revision are only persisted if both calls succeed. Checkpoint output must preserve active human overrides when generating the next structured-state revision.
 
 ### 3. Provider Layer
 

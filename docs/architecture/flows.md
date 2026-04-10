@@ -36,13 +36,16 @@
    → Room status=checkpointing
    → Memory Engine runs run_checkpoint()
      → Summarization LLM call via Provider Layer
-     → Checkpoint record written with status=success or status=error
+     → Structured-state-generation LLM call via Provider Layer
    a. If checkpoint status=success:
       → New summary snapshot generated
       → Structured state updated + versioned while preserving active human overrides
+      → Checkpoint record written with status=success
       → Round status transitions from "closed" to "settled"
       → Room status returns to active
    b. If checkpoint status=error:
+      → No new summary snapshot or structured-state revision is committed
+      → Checkpoint record written with status=error
       → Round status transitions from "closed" to "settled"
       → Room status=awaiting_human_decision
       → No new round may begin on stale summary/state

@@ -38,6 +38,13 @@ from .domain import (
     ensure_round_status_transition,
     utc_now,
 )
+from .memory import (
+    CheckpointRunResult,
+    ContextPayload,
+    MemoryEngine,
+    STATE_GENERATION_PROMPT,
+    SUMMARY_PROMPT,
+)
 from .persistence import RoomPaths, RoomStorage
 from .provider import (
     DEFAULT_ADAPTERS,
@@ -64,13 +71,16 @@ __all__ = [
     "CandidateSolution",
     "Checkpoint",
     "CheckpointStatus",
+    "CheckpointRunResult",
     "CompletionResult",
     "CompletionStatus",
+    "ContextPayload",
     "Decision",
     "Disagreement",
     "DisagreementPosition",
     "EditLogEntry",
     "Message",
+    "MemoryEngine",
     "OpenQuestion",
     "OpenAIAdapter",
     "OpenRouterAdapter",
@@ -95,7 +105,9 @@ __all__ = [
     "Round",
     "RoundStatus",
     "RoundTranscriptRecord",
+    "STATE_GENERATION_PROMPT",
     "StructuredState",
+    "SUMMARY_PROMPT",
     "SummarySnapshot",
     "TransitionError",
     "AnthropicAdapter",

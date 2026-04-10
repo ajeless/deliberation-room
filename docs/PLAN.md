@@ -79,7 +79,7 @@ This plan breaks the MVP into phases with clear milestones. Each phase produces 
 
 **Deliverables:**
 - `append_transcript(round)` — writes immutable round transcript records to JSONL when rounds leave `open`
-- `run_checkpoint()` — calls Provider Layer with summarization prompt, generates a checkpoint result, writes a new working-summary snapshot and updated structured-state revision on success, and records failures explicitly
+- `run_checkpoint()` — makes a summary-generation call followed by a structured-state-generation call via the Provider Layer, writes a new working-summary snapshot and updated structured-state revision atomically on success, and records failures explicitly
 - `get_context_payload()` — returns summary + current structured state
 - `apply_human_edit(field_path, new_value, author)` — writes override to structured state, creates a new revision, logs in edit_log
 - `clear_human_override(field_path, author)` — clears an active override, creates a new revision, logs in edit_log
@@ -88,7 +88,7 @@ This plan breaks the MVP into phases with clear milestones. Each phase produces 
 - Structured state generation prompt (first draft)
 - Tests: checkpoint produces valid structured state, checkpoint failures are recorded explicitly, versioning works, human edits are tracked, human clears are tracked, active overrides survive later checkpoints
 
-**Done when:** Given a sequence of completed rounds, `run_checkpoint()` produces a working summary and a valid structured state object on success, records explicit checkpoint failures on error, and preserves active overrides. Human edits and clears are recorded, versioned, and preserved across later checkpoints unless explicitly changed or cleared.
+**Done when:** Given a sequence of completed rounds, `run_checkpoint()` produces a working summary and a valid structured state object on success, records explicit checkpoint failures on error without partially committing new artifacts, and preserves active overrides. Human edits and clears are recorded, versioned, and preserved across later checkpoints unless explicitly changed or cleared.
 
 **Can be stubbed:** RAG/transcript search. Summary quality tuning.
 
@@ -160,8 +160,6 @@ These are known documentation and design clarifications to resolve during later 
 
 - **Phase 4:** Define the compaction request mechanism. The protocol already treats a compaction request as a checkpoint trigger; Phase 4 should specify how that signal is represented and surfaced to the Protocol Manager.
 - **Phase 4:** Define open-round context consistency. Decide whether `get_context_payload()` is snapshotted at round open or whether human edits made during an open round are deferred until the round settles.
-- **Phase 3:** Specify checkpoint pipeline boundaries. Decide whether `run_checkpoint()` uses one LLM call or separate summary and structured-state-generation calls, and define failure/retry/metrics attribution for each step.
-- **Phase 3 / Phase 6:** Clarify `edit_log` scope versus human-edit metrics. Decide whether `edit_log` is human-only or a mixed audit log including checkpoint-applied changes, and define exactly how `/metrics` counts human edits and clears.
 - **Phase 4:** Finalize canonical checkpoint `reason` values. Phase 1 intentionally persists `reason` as a string, which is sufficient for the persistence skeleton and does not block Phase 2, but Phase 4 checkpoint-trigger logic should not be considered complete until those values are explicit.
 - **Phase 6:** Finalize the metrics JSONL row schema. Phase 1 intentionally supports generic metrics append/read behavior only; Phase 6 instrumentation and reporting should not be considered complete until the canonical row shape is defined.
 - **Phase 5:** Add an explicit room creation / `draft -> active` flow to `docs/architecture/flows.md`, covering room creation, participant setup, and the first round start.
