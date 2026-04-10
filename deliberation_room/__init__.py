@@ -60,6 +60,18 @@ from .provider import (
     ProviderRegistration,
     ProviderStatus,
 )
+from .protocol import (
+    CHECKPOINT_REASON_COMPACTION_REQUEST,
+    CHECKPOINT_REASON_PRE_SWAP,
+    CHECKPOINT_REASON_ROUND_CLOSE,
+    CHECKPOINT_REASON_TOPIC_SHIFT,
+    DECISION_TYPE_CHECKPOINT_FAILURE,
+    DECISION_TYPE_NO_AVAILABLE_AGENTS,
+    DECISION_TYPE_PROVIDER_FAILURE,
+    PASS_TOKEN,
+    ProtocolActionResult,
+    ProtocolManager,
+)
 
 __all__ = [
     "ROOM_STATUS_TRANSITIONS",
@@ -88,6 +100,8 @@ __all__ = [
     "ParticipantOutcome",
     "ParticipantType",
     "PendingHumanDecision",
+    "ProtocolActionResult",
+    "ProtocolManager",
     "ProviderAdapter",
     "ProviderAPIError",
     "ProviderDiscoveryResult",
@@ -112,7 +126,15 @@ __all__ = [
     "TransitionError",
     "AnthropicAdapter",
     "DEFAULT_ADAPTERS",
+    "DECISION_TYPE_CHECKPOINT_FAILURE",
+    "DECISION_TYPE_NO_AVAILABLE_AGENTS",
+    "DECISION_TYPE_PROVIDER_FAILURE",
+    "CHECKPOINT_REASON_COMPACTION_REQUEST",
+    "CHECKPOINT_REASON_PRE_SWAP",
+    "CHECKPOINT_REASON_ROUND_CLOSE",
+    "CHECKPOINT_REASON_TOPIC_SHIFT",
     "KeySource",
+    "PASS_TOKEN",
     "ensure_participant_outcome_transition",
     "ensure_room_status_transition",
     "ensure_round_status_transition",
