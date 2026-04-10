@@ -186,6 +186,7 @@ Track from day one, even in MVP:
 | Latency per LLM call | From CompletionResult.latency_ms |
 
 Logged to a local metrics JSONL file. No external telemetry in V1.
+The Phase 1 persistence skeleton intentionally leaves the per-row metrics event schema open; Phase 6 defines the canonical metrics JSONL row shape used for reporting and evaluation.
 
 ---
 

@@ -162,7 +162,8 @@ These are known documentation and design clarifications to resolve during later 
 - **Phase 4:** Define open-round context consistency. Decide whether `get_context_payload()` is snapshotted at round open or whether human edits made during an open round are deferred until the round settles.
 - **Phase 3:** Specify checkpoint pipeline boundaries. Decide whether `run_checkpoint()` uses one LLM call or separate summary and structured-state-generation calls, and define failure/retry/metrics attribution for each step.
 - **Phase 3 / Phase 6:** Clarify `edit_log` scope versus human-edit metrics. Decide whether `edit_log` is human-only or a mixed audit log including checkpoint-applied changes, and define exactly how `/metrics` counts human edits and clears.
-- **Phase 1 / Phase 6:** Add canonical persistence enums and row shapes that are still only implied, especially checkpoint `reason` values and the metrics JSONL record schema.
+- **Phase 4:** Finalize canonical checkpoint `reason` values. Phase 1 intentionally persists `reason` as a string, which is sufficient for the persistence skeleton and does not block Phase 2, but Phase 4 checkpoint-trigger logic should not be considered complete until those values are explicit.
+- **Phase 6:** Finalize the metrics JSONL row schema. Phase 1 intentionally supports generic metrics append/read behavior only; Phase 6 instrumentation and reporting should not be considered complete until the canonical row shape is defined.
 - **Phase 5:** Add an explicit room creation / `draft -> active` flow to `docs/architecture/flows.md`, covering room creation, participant setup, and the first round start.
 
 ---

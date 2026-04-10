@@ -183,6 +183,7 @@ The raw transcript is persisted as an append-only JSONL file of immutable round 
 
 **Checkpoint semantics:**
 - `status` is `success` or `error`
+- `reason` remains a free-form string in the Phase 1 persistence skeleton; canonical enum values are intentionally deferred until the checkpoint-trigger design is finalized
 - `summary_snapshot_id` and `structured_state_revision_id` are nullable when the checkpoint fails before producing new artifacts
 - Each checkpoint attempt is logged, including failures
 
