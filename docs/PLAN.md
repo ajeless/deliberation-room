@@ -10,10 +10,11 @@ This plan breaks the MVP into phases with clear milestones. Each phase produces 
 
 **Goal:** Make an explicit implementation choice for the first build without letting it happen by accident.
 
-**Decision to make:**
-- Python + UV
-- Go
-- another option, if explicitly justified
+**Decision outcome:**
+- MVP implementation: Python 3.12 + UV
+- Optimization target: MVP learning speed
+- Post-MVP direction: if the MVP proves this is a genuinely useful product and not just a cool experiment, Go is the leading candidate for an early Room Engine reimplementation before broad feature expansion
+- Rewrite status: likely, but not automatic; final decision follows MVP evaluation
 
 **Evaluation criteria:**
 - fastest path to a usable MVP
@@ -24,11 +25,12 @@ This plan breaks the MVP into phases with clear milestones. Each phase produces 
 - future performance and concurrency needs
 
 **Deliverables:**
-- short stack decision record
+- short stack decision record in `docs/STACK-DECISION.md`
 - rationale for why the chosen stack fits the first implementation
 - explicit note on what is being optimized for: MVP learning speed, long-term engine simplicity, or another stated priority
+- explicit note on the expected post-MVP Go path and the condition that would trigger it
 
-**Done when:** The stack choice is made intentionally and reflected in `AGENTS.md`, without ambiguity.
+**Done when:** The stack choice is made intentionally and reflected in `AGENTS.md` and `docs/STACK-DECISION.md`, without ambiguity.
 
 **Can be stubbed:** Nothing. This decision should happen before implementation begins.
 
@@ -40,11 +42,12 @@ This plan breaks the MVP into phases with clear milestones. Each phase produces 
 
 **Deliverables:**
 - Domain object definitions: Room, Participant, Agent, Round, Message, Checkpoint, StructuredState, CompletionResult
-- Structured state JSON schema (canonical, as defined in `deliberation-room-architecture-v2.md`)
-- Persistence layer: read and write functions for transcript JSONL, structured state versioned JSON, room config JSON, checkpoint log JSONL, metrics JSONL
-- Unit tests for serialization round-trips and append/read operations
+- Canonical room, round, and participant-in-round state enums plus allowed transitions
+- Structured state JSON schema (canonical, as defined in `docs/architecture/contracts.md`), including `field_path` override addressing and clear semantics
+- Persistence layer: read and write functions for transcript JSONL, versioned summary snapshots, structured state revisions, room config JSON, checkpoint log JSONL with success/error outcome records, metrics JSONL
+- Unit tests for serialization round-trips, append/read operations, and lifecycle transition validity
 
-**Done when:** You can create a Room, write rounds to transcript, write and version structured state, and read it all back from disk.
+**Done when:** You can create a Room, transition its room/round states including archive and resume, write rounds to transcript, write checkpoint success/error records, write and version summary/state revisions, and read it all back from disk.
 
 **Can be stubbed:** Nothing — this is foundational.
 
@@ -76,15 +79,16 @@ This plan breaks the MVP into phases with clear milestones. Each phase produces 
 
 **Deliverables:**
 - `append_transcript(round)` — writes to JSONL
-- `run_checkpoint()` — calls Provider Layer with summarization prompt, generates new working summary and updated structured state, writes versioned files
+- `run_checkpoint()` — calls Provider Layer with summarization prompt, generates a checkpoint result, writes a new working-summary snapshot and updated structured-state revision on success, and records failures explicitly
 - `get_context_payload()` — returns summary + current structured state
-- `apply_human_edit()` — writes override to structured state, logs in edit_log
+- `apply_human_edit(field_path, new_value, author)` — writes override to structured state, creates a new revision, logs in edit_log
+- `clear_human_override(field_path, author)` — clears an active override, creates a new revision, logs in edit_log
 - `get_state_history()` — lists versions, supports diff
 - Summarization prompt (first draft — functional, not optimized)
 - Structured state generation prompt (first draft)
-- Tests: checkpoint produces valid structured state, versioning works, human edits are tracked
+- Tests: checkpoint produces valid structured state, checkpoint failures are recorded explicitly, versioning works, human edits are tracked, human clears are tracked, active overrides survive later checkpoints
 
-**Done when:** Given a sequence of completed rounds, `run_checkpoint()` produces a working summary and a valid structured state object. Human edits are recorded and versioned.
+**Done when:** Given a sequence of completed rounds, `run_checkpoint()` produces a working summary and a valid structured state object on success, records explicit checkpoint failures on error, and preserves active overrides. Human edits and clears are recorded, versioned, and preserved across later checkpoints unless explicitly changed or cleared.
 
 **Can be stubbed:** RAG/transcript search. Summary quality tuning.
 
@@ -95,17 +99,22 @@ This plan breaks the MVP into phases with clear milestones. Each phase produces 
 **Goal:** Implement round lifecycle, blind-round mechanics, and checkpoint triggering.
 
 **Deliverables:**
-- `start_round()` — creates round, notifies participants
+- `start_round()` — creates a human-seeded round, consumes the human turn for that round, notifies agents
 - `submit_response()` — records response or pass, enforces no-double-response
-- `close_round()` — fires when all participants responded or passed, triggers transcript append
+- `close_round()` — fires when all non-seed participants responded, passed, or were explicitly marked unavailable, triggers transcript append
+- `resume_room()` — reactivates an archived room using the latest persisted summary/state with no open round
 - Blind-round enforcement: responses are collected but not revealed until close
+- MVP cadence enforcement: every round is human-seeded; agents do not autonomously open rounds
 - Checkpoint trigger logic: every-N (default every round for MVP), compaction request, topic shift, pre-swap
 - Round-settle invariant: next round blocked until checkpoint resolves
+- Room and round lifecycle state transitions
+- Provider failure resolution: `continue`, `wait_once`, `swap_next_checkpoint`, `archive`, `end`
+- Checkpoint failure resolution: `retry_checkpoint`, `archive`, `end`
 - Participant registry: add/remove, human vs. agent tracking
 - Agent orchestration: for each agent, assemble prompt, call Provider Layer, record response
-- Tests: round lifecycle, blind enforcement, checkpoint triggers, settle invariant, error handling when agent unavailable
+- Tests: round lifecycle, human-seeded cadence enforcement, blind enforcement, checkpoint triggers, settle invariant, provider failure resolution, checkpoint failure resolution, archived-room resume behavior, room archival/end transitions
 
-**Done when:** You can run a complete round: seed → agent responses (blind) → human response → close → checkpoint → settle. The system blocks the next round until settled.
+**Done when:** You can run a complete round: human seed → agent responses (blind) → close → checkpoint → settle. The system blocks the next round until settled.
 
 **Can be stubbed:** Agent swap flow.
 
@@ -117,15 +126,17 @@ This plan breaks the MVP into phases with clear milestones. Each phase produces 
 
 **Deliverables:**
 - Room creation flow: name the room, describe problem, select or confirm agents
+- Manual restart flow for archived rooms
 - Key detection display
 - Round display: show seed, show waiting status, reveal all responses on round close
 - Structured state panel display
-- Commands: `/pass`, `/checkpoint`, `/swap`, `/status`, `/history`, `/edit`, `/metrics`
-- Provider failure notification + human decision prompt
+- Commands: `/checkpoint`, `/swap`, `/status`, `/history`, `/edit`, `/clear`, `/metrics`
+- Provider failure notification + human decision prompt (`continue`, `wait_once`, `swap_next_checkpoint`, `archive`, `end` as applicable)
+- Checkpoint failure notification + human decision prompt (`retry_checkpoint`, `archive`, `end`)
 - Agent swap flow integrated end-to-end
 - Onboarding: zero to working room in under 2 minutes
 
-**Done when:** A human can launch the tool, set up a room, run multiple rounds, see the structured state evolve, edit it, and swap an agent — all from the CLI.
+**Done when:** A human can launch the tool, set up a room, run multiple human-seeded rounds, see the structured state evolve, edit and clear overrides, respond to provider and checkpoint failures, archive or resume a room, and swap an agent — all from the CLI.
 
 ---
 

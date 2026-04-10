@@ -22,12 +22,16 @@ A shared room where humans and LLMs participate as peers in structured, round-ba
 
 The room runs on a **round-based cadence**, not real-time chat.
 
-- A round consists of a **seed message** (from any participant) followed by **responses** from all other participants.
-- Participants respond or **pass**.
-- The round closes when everyone has responded or passed.
+- MVP supports **exactly one human participant** and one or more agent participants.
+- A round consists of a **seed message** followed by **responses** from all other participants.
+- In MVP, **every round must be seeded by the human participant**. The seed consumes the human's turn for that round; the human does not also respond or pass in the same round.
+- Agents do not autonomously open rounds.
+- Agent participants respond or **pass**.
+- The round closes when every non-seed participant has responded, passed, or been explicitly marked unavailable after a surfaced provider failure.
 - No participant speaks twice in a single round.
 - Rounds are sequential — no overlapping rounds in V1.
 - **Within-round visibility is blind by default** — agents respond only to the seed message and prior room state, not to other responses arriving in the same round. All responses are revealed when the round closes. Sequential visible responses may be explored later as an experimental mode.
+- This human-seeded cadence is an MVP protocol rule, not a permanent data-model restriction.
 
 **Checkpointing** occurs:
 - Every round by default during MVP evaluation (maximizes observability and catches state drift early; this default may be relaxed based on testing)
@@ -79,6 +83,7 @@ Three layers, serving both agents and humans:
 - A compressed narrative of the conversation so far.
 - Maintained in-context for all agents.
 - Regenerated at each checkpoint.
+- Stored as versioned checkpoint snapshots, with a current summary projection for normal reads.
 
 ### Layer 3 — Structured State Object
 - Canonical internal representation is a **structured JSON schema**. Rendering/export layers (markdown, formatted UI, potentially binary for performance) sit on top. The schema is the source of truth; display formats are projections of it.
@@ -89,8 +94,11 @@ Three layers, serving both agents and humans:
   - **Decisions made** — things the room has agreed on
   - **Unresolved disagreements** — where participants still differ
   - **Action items** — if applicable
-- Updated by the system at each checkpoint. **Revisions are versioned** — each checkpoint produces a new version, enabling diff and rollback.
-- **Human-editable** — humans can correct or override any field. Edits are tracked and marked as human-authored. Principle: system-maintained, human-correctable.
+- Updated by the system at each checkpoint. **Revisions are versioned** — each checkpoint produces a new state revision, enabling diff and rollback.
+- **Human-editable** — humans can correct or override any field. Every human edit also creates a new state revision. Edits are tracked and marked as human-authored.
+- Human edits target canonical `field_path` addresses. Repeated collections are addressed by stable item IDs rather than numeric list indexes.
+- Human edits are treated as **active overrides**. Later checkpoints must preserve those overrides until a human changes or clears them.
+- Clearing an override is an explicit human action and also creates a new state revision.
 - Visible to all participants (including humans) as a persistent side panel.
 
 ---
@@ -108,8 +116,8 @@ Three layers, serving both agents and humans:
 ## MVP Scope
 
 ### In
-- 1+ humans, 1+ LLM agents in a shared room
-- Round-based turns with pass
+- Exactly 1 human, 1+ LLM agents in a shared room
+- Human-seeded rounds with agent pass
 - Blind within-round responses (revealed on round close)
 - Role-first agent setup with default model selection
 - API key auto-discovery (direct + meta-provider)
@@ -121,14 +129,16 @@ Three layers, serving both agents and humans:
 - Hot-swap agents at checkpoints
 - Summarization built into room protocol (not a separate agent)
 - Provider failure handling: bounded retry, then flag + human decision
+- Local per-room filesystem persistence for durability and manual restart of archived rooms
 
 ### Explicitly Out (V1)
 - Fast-pass / selective-response mode
 - Visible within-round responses (sequential mode)
 - Browser-session reuse of consumer chat subscriptions
 - Provider signup wizard
+- Multiple human participants in one room
 - Multiple simultaneous rooms
-- Persistent cross-session room history
+- Global cross-room or cross-session history beyond a room's own local files
 - Voice or multimedia input
 - Fine-grained permissions / roles for human participants
 - Dedicated summarizer/facilitator agent
@@ -156,13 +166,17 @@ Three layers, serving both agents and humans:
 ## Resolved Decisions
 
 1. **Checkpoint frequency:** Default to every round during MVP evaluation for maximum observability. Configurable N for later. Track token cost per checkpoint to inform when to relax.
-2. **Structured state editability:** System-maintained, human-correctable. Human edits are tracked as overrides.
+2. **Structured state editability:** System-maintained, human-correctable. Every checkpoint and every human edit creates a new structured-state revision. Human edits are tracked as active overrides and preserved until a human changes or clears them.
 3. **Summarizer role:** Built into the room protocol for V1, not a visible participant. A dedicated facilitator/summarizer agent is a future option.
-4. **Provider failures mid-round:** Bounded retry (1–2 attempts with short backoff). If still failing, flag agent as unavailable for the round. Human decides: continue without, wait, or swap at next checkpoint. No silent auto-pass.
-5. **Interface priority:** Headless core with CLI shell first. The room engine is built as a reusable library. Web, IDE, and native clients attach to the same core later.
-6. **Structured state format:** Canonical JSON schema internally, with flexible rendering/export layers on top.
-7. **Within-round visibility:** Blind by default. All responses revealed on round close.
-8. **Naming:** "Deliberation Room" retained as working code name. Product naming deferred.
+4. **Provider failures mid-round:** Bounded retry (1–2 attempts with short backoff). If still failing, surface a human decision. The human may continue and mark the agent unavailable for the round, wait for one additional retry cycle exactly once for that failure episode, queue a swap at the next checkpoint, archive the room, or end it. No silent auto-pass.
+5. **Checkpoint failures:** A round is considered settled once its post-round checkpoint succeeds or fails explicitly. If the checkpoint fails, the room moves to `awaiting_human_decision`. In MVP, no new round may begin on stale summary/state; the human must retry the checkpoint, archive the room, or end it.
+6. **Interface priority:** Headless core with CLI shell first. The room engine is built as a reusable library. Web, IDE, and native clients attach to the same core later.
+7. **Structured state format:** Canonical JSON schema internally, with flexible rendering/export layers on top.
+8. **Within-round visibility:** Blind by default. All responses revealed on round close.
+9. **Round ownership:** In MVP, every round is human-seeded. The seed consumes the human's turn for that round. Agents do not autonomously open rounds. This is an MVP protocol rule, not a permanent data-model restriction.
+10. **MVP human participation:** MVP supports exactly one human participant per room.
+11. **Room exit semantics:** Intentional human quit ends the room. Unexpected human disconnect archives the room for possible later manual restart. Archived rooms may be resumed manually from local room files; ended rooms may not be resumed.
+12. **Naming:** "Deliberation Room" retained as working code name. Product naming deferred.
 
 ---
 
