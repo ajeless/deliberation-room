@@ -44,10 +44,10 @@ This plan breaks the MVP into phases with clear milestones. Each phase produces 
 - Domain object definitions: Room, Participant, Agent, Round, Message, Checkpoint, StructuredState, CompletionResult
 - Canonical room, round, and participant-in-round state enums plus allowed transitions
 - Structured state JSON schema (canonical, as defined in `docs/architecture/contracts.md`), including `field_path` override addressing and clear semantics
-- Persistence layer: read and write functions for transcript JSONL, versioned summary snapshots, structured state revisions, room config JSON, checkpoint log JSONL with success/error outcome records, metrics JSONL
+- Persistence layer: read and write functions for transcript JSONL round records (including abandoned rounds), versioned summary snapshots, structured state revisions, room config JSON, room runtime state JSON, checkpoint log JSONL with success/error outcome records, metrics JSONL
 - Unit tests for serialization round-trips, append/read operations, and lifecycle transition validity
 
-**Done when:** You can create a Room, transition its room/round states including archive and resume, write rounds to transcript, write checkpoint success/error records, write and version summary/state revisions, and read it all back from disk.
+**Done when:** You can create a Room, transition its room/round states including archive and resume, persist room runtime state including any open round, write closed and abandoned rounds to transcript history, write checkpoint success/error records, write and version summary/state revisions, and read it all back from disk.
 
 **Can be stubbed:** Nothing — this is foundational.
 
@@ -78,7 +78,7 @@ This plan breaks the MVP into phases with clear milestones. Each phase produces 
 **Goal:** Implement the three-layer memory model with checkpoint-driven summarization.
 
 **Deliverables:**
-- `append_transcript(round)` — writes to JSONL
+- `append_transcript(round)` — writes immutable round transcript records to JSONL when rounds leave `open`
 - `run_checkpoint()` — calls Provider Layer with summarization prompt, generates a checkpoint result, writes a new working-summary snapshot and updated structured-state revision on success, and records failures explicitly
 - `get_context_payload()` — returns summary + current structured state
 - `apply_human_edit(field_path, new_value, author)` — writes override to structured state, creates a new revision, logs in edit_log
@@ -160,6 +160,9 @@ These are known documentation and design clarifications to resolve during later 
 
 - **Phase 4:** Define the compaction request mechanism. The protocol already treats a compaction request as a checkpoint trigger; Phase 4 should specify how that signal is represented and surfaced to the Protocol Manager.
 - **Phase 4:** Define open-round context consistency. Decide whether `get_context_payload()` is snapshotted at round open or whether human edits made during an open round are deferred until the round settles.
+- **Phase 3:** Specify checkpoint pipeline boundaries. Decide whether `run_checkpoint()` uses one LLM call or separate summary and structured-state-generation calls, and define failure/retry/metrics attribution for each step.
+- **Phase 3 / Phase 6:** Clarify `edit_log` scope versus human-edit metrics. Decide whether `edit_log` is human-only or a mixed audit log including checkpoint-applied changes, and define exactly how `/metrics` counts human edits and clears.
+- **Phase 1 / Phase 6:** Add canonical persistence enums and row shapes that are still only implied, especially checkpoint `reason` values and the metrics JSONL record schema.
 - **Phase 5:** Add an explicit room creation / `draft -> active` flow to `docs/architecture/flows.md`, covering room creation, participant setup, and the first round start.
 
 ---

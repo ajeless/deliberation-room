@@ -46,6 +46,7 @@ The MVP implementation stack is Python 3.12 + UV. The architecture remains inten
 - Room state (`draft`, `active`, `awaiting_human_decision`, `checkpointing`, `archived`, `ended`)
 - Round state (`open`, `closed`, `settled`, `abandoned`)
 - Participant-in-round state (`pending`, `responded`, `passed`, `unavailable`)
+- Persisted room runtime projection (`room_state.json`), including any currently open round and pending human-decision metadata
 - Checkpoint trigger logic (every-N, compaction request, topic shift, pre-swap)
 - Participant registry (who is in the room, human vs. agent)
 
@@ -81,14 +82,14 @@ The MVP implementation stack is Python 3.12 + UV. The architecture remains inten
 **Responsibility:** Manages the three-layer memory model. Produces and versions summaries and structured state.
 
 **Owns:**
-- Raw transcript (append-only log)
+- Raw transcript (append-only log of round transcript records, including abandoned rounds)
 - Working summary history (versioned checkpoint snapshots plus a current pointer)
 - Structured state revision history (versioned JSON, diffable)
 - Active human overrides on structured state
 - Checkpoint history
 
 **Key operations:**
-- `append_transcript(round)` — stores a completed round
+- `append_transcript(round)` — stores an immutable round transcript record once a round leaves `open` (`closed` or `abandoned`)
 - `run_checkpoint(transcript_since_last, current_state)` — generates a checkpoint result with a new summary snapshot + updated structured state revision on success; preserves active human overrides
 - `get_context_payload()` — returns the package an agent needs: working summary + current structured state (NOT the full transcript)
 - `get_transcript(query?)` — RAG-style retrieval over raw transcript for specific lookups

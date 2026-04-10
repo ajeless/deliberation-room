@@ -8,7 +8,7 @@
 
 | Object | Description |
 |---|---|
-| **Room** | Top-level container. Has participants, rounds, memory layers, config, and a room lifecycle status. MVP supports exactly one human participant per room. |
+| **Room** | Top-level container. Has participants, rounds, memory layers, config, runtime state, and a room lifecycle status. MVP supports exactly one human participant per room. |
 | **Participant** | Either the single Human participant or an Agent. Has an ID, display name, and type. |
 | **Agent** | Extends Participant. Has role, system prompt, model_id, provider. |
 | **Round** | A seed message + per-participant outcomes for all non-seed participants. Has a round number, seed author, and status (`open`/`closed`/`settled`/`abandoned`). |
@@ -58,6 +58,108 @@
 **Participant outcome transitions:**
 - `pending -> responded | passed | unavailable`
 - `responded`, `passed`, and `unavailable` are terminal for that round
+
+---
+
+## Room Persistence Contracts
+
+The persisted `Room` state is split into two filesystem artifacts:
+
+- `room_config.json` — stable room metadata, participant definitions, and settings
+- `room_state.json` — mutable runtime projection used for lifecycle transitions, manual resume, and any currently open round
+
+**Room runtime state (`room_state.json`) canonical fields:**
+
+```json
+{
+  "room_id": "room_0001",
+  "status": "awaiting_human_decision",
+  "created_at": "timestamp",
+  "updated_at": "timestamp",
+  "latest_transcript_round_number": 2,
+  "latest_checkpoint_id": "chk_0002",
+  "latest_summary_snapshot_id": "sum_0002",
+  "latest_structured_state_revision_id": "state_0002",
+  "current_round": {
+    "round_number": 3,
+    "status": "open",
+    "seed_author": "human_1",
+    "seed_message": {
+      "author": "human_1",
+      "content": "string",
+      "timestamp": "timestamp",
+      "round_number": 3
+    },
+    "responses": [
+      {
+        "author": "agent_2",
+        "content": "string",
+        "timestamp": "timestamp",
+        "round_number": 3
+      }
+    ],
+    "participant_outcomes": {
+      "agent_1": "pending",
+      "agent_2": "responded"
+    }
+  },
+  "pending_human_decision": {
+    "type": "provider_failure",
+    "participant_id": "agent_1",
+    "allowed_actions": ["continue", "wait_once", "swap_next_checkpoint", "archive", "end"]
+  },
+  "queued_agent_swap": null
+}
+```
+
+**Room runtime semantics:**
+- `room_state.json` is the canonical mutable lifecycle projection for the room; archive/resume logic relies on it rather than reconstructing from transcript history alone
+- `current_round` is non-null only while a round is still `open`; once that round leaves `open`, it is written to transcript history and `current_round` is cleared
+- `latest_transcript_round_number` tracks the most recent round already written to transcript history; it does not include any still-open round held in `current_round`
+- `latest_checkpoint_id`, `latest_summary_snapshot_id`, and `latest_structured_state_revision_id` point to the latest successfully produced artifacts
+- `pending_human_decision` captures why progression is paused and which actions are currently available to the human
+- `queued_agent_swap` records a swap requested for the next checkpoint boundary
+
+---
+
+## Transcript Persistence Contract
+
+The raw transcript is persisted as an append-only JSONL file of immutable round transcript records.
+
+**Transcript row (canonical fields):**
+
+```json
+{
+  "round_number": 3,
+  "round_exit_status": "abandoned",
+  "seed_message": {
+    "author": "human_1",
+    "content": "string",
+    "timestamp": "timestamp",
+    "round_number": 3
+  },
+  "responses": [
+    {
+      "author": "agent_2",
+      "content": "string",
+      "timestamp": "timestamp",
+      "round_number": 3
+    }
+  ],
+  "participant_outcomes": {
+    "agent_1": "unavailable",
+    "agent_2": "responded"
+  },
+  "recorded_at": "timestamp"
+}
+```
+
+**Transcript semantics:**
+- Each row preserves the complete set of messages actually produced for one round before that round left `open`
+- Normal rounds are appended with `round_exit_status: "closed"` when `close_round()` runs
+- Interrupted rounds are appended with `round_exit_status: "abandoned"` before the room is archived or ended
+- Transcript history therefore includes abandoned rounds, preserving the seed plus any partial agent responses captured before interruption
+- Checkpoint settlement is tracked by checkpoint/state artifacts; transcript rows are immutable and are not rewritten from `closed` to `settled`
 
 ---
 

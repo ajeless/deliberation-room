@@ -14,6 +14,7 @@
    → Room status=active
    → Human seed author is recorded as the seed author for the round
    → The human's turn for this round is now consumed
+   → `room_state.json` is updated with the currently open round
    → Protocol Manager notifies all agent participants
 
 2. For each Agent participant (order does not matter, blind responses):
@@ -28,7 +29,8 @@
    → Protocol Manager calls close_round()
    → Round status=closed
    → All responses revealed simultaneously to the human
-   → Completed round sent to Memory Engine via append_transcript()
+   → Closed round transcript record appended to transcript history via append_transcript()
+   → `current_round` is cleared from `room_state.json`
 
 4. MVP checkpoint trigger fires
    → Room status=checkpointing
@@ -82,8 +84,10 @@
                             → queues swap at the next checkpoint boundary
                             → room status returns to active
    d. Archive → if a round is open, it transitions to abandoned
+              → abandoned round transcript record is appended before room status changes
               → room status=archived
    e. End → if a round is open, it transitions to abandoned
+          → abandoned round transcript record is appended before room status changes
           → room status=ended
 7. If all non-seed participants are now in terminal states
    (`responded`, `passed`, or `unavailable`)
@@ -120,10 +124,12 @@
 ```text
 1. Human intentionally quits
    → if a round is open, it transitions to abandoned
+   → abandoned round transcript record is appended before room status changes
    → room status=ended
 
 2. Human disconnects unexpectedly
    → if a round is open, it transitions to abandoned
+   → abandoned round transcript record is appended before room status changes
    → room status=archived
    → local room files remain available for possible later manual restart
 
@@ -151,15 +157,17 @@ All persistence is **local filesystem**, kept simple for MVP:
 
 | Data | Storage |
 |---|---|
-| Raw transcript | Append-only JSONL file |
+| Raw transcript | Append-only JSONL file of immutable round transcript records (`closed` and `abandoned`) |
 | Working summary | Versioned checkpoint summary files, plus a current-summary convenience file |
 | Structured state | Versioned JSON revision files (checkpoint, human-edit, and human-clear revisions) |
-| Room config | Single JSON file (participants, settings) |
+| Room config | Single JSON file (room metadata, participant definitions, settings) |
+| Room runtime state | Single mutable JSON file (`room_state.json`) containing lifecycle state, any currently open round, latest checkpoint pointers, and pending human-decision metadata |
 | Checkpoint log | Append-only JSONL file (timestamp, reason, status, version pointers, error info) |
 | Metrics | Append-only JSONL file |
 
 No database in V1. Filesystem is sufficient and keeps dependencies minimal.
 Local per-room persistence is in scope for durability and manual restart of a room. Global cross-room or cross-session history is out of scope for MVP.
+`room_state.json` is the canonical resume source for a live or archived room. Transcript history is immutable and captures rounds only after they leave `open`.
 
 ---
 

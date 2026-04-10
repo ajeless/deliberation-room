@@ -77,6 +77,7 @@ Three layers, serving both agents and humans:
 ### Layer 1 — Raw Transcript
 - Complete record of every message in every round.
 - Stored externally (not in any agent's context window).
+- Open-round state is kept separately from transcript history until a round closes or is abandoned; abandoned rounds still preserve the seed and any captured responses in history.
 - Searchable / retrievable via RAG if a specific earlier point becomes relevant.
 
 ### Layer 2 — Working Summary
